@@ -2,43 +2,47 @@ package org.example;
 
 import org.example.common.FileType;
 import org.example.data.VirtualDisk;
+import org.example.exception.InvalidFileTypeException;
 import org.example.file.DirectoryEntry;
+import org.example.file.DirectoryTree;
 import org.example.file.FileDescriptor;
 import org.example.openFile.OpenFile;
 import org.example.openFile.OpenFileTable;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 
 public class FileSystem {
+    private static DirectoryTree directoryTree;
     private static final FileDescriptor[] fileDescriptors = new FileDescriptor[100];
     private static final List<DirectoryEntry> rootDirectoryEntries = new ArrayList<>();
     private static final OpenFileTable openFileTable = new OpenFileTable();
     private static final VirtualDisk virtualDisk = new VirtualDisk(100);
 
+    private static void init() {
+        directoryTree = DirectoryTree.init();
+    }
+
     public static void main(String[] args) {
+        init();
+
         Scanner scanner = new Scanner(System.in);
         while (true) {
+            System.out.printf("%s> ".formatted(directoryTree.getCwdPath()));
             String[] command = scanner.nextLine().split(" ");
+
             switch (command[0]) {
                 case "stat":
                     stat(command[1]);
                     break;
                 case "create":
-                    String fileName = command[1];
-                    create(fileName);
+                    create(command[1]);
                     break;
                 case "link":
-                    String name1 = command[1];
-                    String name2 = command[2];
-                    link(name1, name2);
+                    link(command[1], command[2]);
                     break;
                 case "unlink":
-                    String name = command[1];
-                    unlink(name);
+                    unlink(command[1]);
                     break;
                 case "ls":
                     ls();
@@ -63,6 +67,9 @@ public class FileSystem {
                     break;
                 case "truncate":
                     truncate(command[1], command[2]);
+                    break;
+                case "cd":
+                    cd(command[1]);
                     break;
                 default:
                     System.out.println("Unknown command.");
@@ -356,6 +363,14 @@ public class FileSystem {
 
             System.out.printf("Truncated file %s to size %d.\n".formatted(name, size));
         }
+    }
+
+    private static void cd(String path) {
+        FileDescriptor fileDescriptor = directoryTree.resolvePath(path);
+        if (fileDescriptor.getType() != FileType.DIRECTORY) {
+            throw new InvalidFileTypeException("Path %s is not a directory.".formatted(path));
+        }
+        directoryTree.setCwd(fileDescriptor);
     }
 
     private static int findFreeDescriptorId() {

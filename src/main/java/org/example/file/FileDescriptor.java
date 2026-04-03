@@ -7,6 +7,7 @@ import lombok.ToString;
 import org.example.common.FileType;
 
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -19,4 +20,7 @@ public class FileDescriptor {
     private int size;
     private List<Integer> directBlocks;
     private int indirectBlock;
+    private Map<String, DirectoryEntry> directoryEntries;
+    private int parentDirectoryId;
+    private String directoryName;
 }

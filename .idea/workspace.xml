@@ -4,7 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="bf89b240-7283-454a-8df7-4167f3a6cc77" name="Changes" comment="" />
+    <list default="true" id="bf89b240-7283-454a-8df7-4167f3a6cc77" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/example/FileSystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/FileSystem.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/example/file/FileDescriptor.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/file/FileDescriptor.java" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -40,10 +44,14 @@
     <option name="RECENT_TEMPLATES">
       <list>
         <option value="Enum" />
-        <option value="Class" />
         <option value="Interface" />
+        <option value="Class" />
+        <option value="Exception" />
       </list>
     </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="McpProjectServerCommands">
     <commands />
@@ -67,6 +75,7 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "git-widget-placeholder": "lab5",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "C:/Users/nazar/OneDrive/Рабочий стол/Education/СПЗ/lab4/file_system",
     "node.js.detected.package.eslint": "true",
@@ -123,11 +132,22 @@
       <updated>1775041464963</updated>
       <workItem from="1775041466118" duration="17505000" />
       <workItem from="1775126441135" duration="10772000" />
-      <workItem from="1775209614050" duration="8000" />
+      <workItem from="1775209614050" duration="6828000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
 </project>
