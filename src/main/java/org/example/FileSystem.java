@@ -2,6 +2,7 @@ package org.example;
 
 import org.example.common.FileType;
 import org.example.data.VirtualDisk;
+import org.example.exception.EmptyFileException;
 import org.example.exception.InvalidFileTypeException;
 import org.example.file.DirectoryEntry;
 import org.example.file.DirectoryTree;
@@ -153,73 +154,37 @@ public class FileSystem {
     }
 
     private static void seek(String stringFd, String stringOffset) {
-        int fd;
-        int offset;
-        try {
-            fd = Integer.parseInt(stringFd);
-            offset = Integer.parseInt(stringOffset);
-        } catch (NumberFormatException ex) {
-            System.out.println("Invalid FD or Offset.");
-            return;
-        }
+        int fd = Integer.parseInt(stringFd);
+        int offset = Integer.parseInt(stringOffset);
 
         OpenFile openFile = openFileTable.getOpenFileByFd(fd);
-        if (openFile == null) {
-            System.out.println("FD not found.");
-            return;
-        }
-
         openFile.setCurrentOffset(offset);
+
         System.out.printf("Seeked to offset %d successfully.\n".formatted(offset));
     }
 
     private static void read(String stringFd, String stringSize) {
-        int fd;
-        int size;
-        try {
-            fd = Integer.parseInt(stringFd);
-            size = Integer.parseInt(stringSize);
-        } catch (NumberFormatException ex) {
-            System.out.println("Invalid FD or Size.");
-            return;
-        }
+        int fd = Integer.parseInt(stringFd);
+        int size = Integer.parseInt(stringSize);
 
         OpenFile openFile = openFileTable.getOpenFileByFd(fd);
-        if (openFile == null) {
-            System.out.println("FD not found.");
-            return;
-        }
         int descriptorId = openFile.getDescriptorId();
         int offset = openFile.getCurrentOffset();
 
-        FileDescriptor descriptor = fileDescriptors[descriptorId];
-        List<Integer> blockLinks = descriptor.getDirectBlocks();
+        FileDescriptor descriptor = directoryTree.getFileDescriptorById(descriptorId);
+        List<Integer> directBlocks = descriptor.getDirectBlocks();
 
-        if (blockLinks == null || blockLinks.isEmpty()) {
-            System.out.println("File is empty.");
-            return;
-        }
+        byte[] readData = virtualDisk.readBlocksWithOffset(
+                directBlocks,
+                offset,
+                size
+        );
+        String stringReadData = new String(readData, StandardCharsets.UTF_8);
 
-        List<Byte> allData = new ArrayList<>();
-        for (int blockLink : blockLinks) {
-            byte[] block = virtualDisk.getBlock(blockLink);
-            for (byte b : block) {
-                allData.add(b);
-            }
-        }
+        openFile.setCurrentOffset(readData.length);
 
-        int end = Math.min(offset + size, allData.size());
-        List<Byte> readData = allData.subList(offset, end);
-
-        openFile.setCurrentOffset(end);
-
-        byte[] readDataArray = new byte[readData.size()];
-        for (int i = 0; i < readData.size(); i++) {
-            readDataArray[i] = readData.get(i);
-        }
-        String stringReadData = new String(readDataArray, StandardCharsets.UTF_8);
         System.out.printf("Read %d bytes to offset %d: %s\n"
-                .formatted(readData.size(), openFile.getCurrentOffset(), stringReadData));
+                .formatted(readData.length, openFile.getCurrentOffset(), stringReadData));
     }
 
     private static void write(String stringFd, String stringData) {

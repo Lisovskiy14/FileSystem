@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.example.common.FileType;
 import org.example.file.exception.DirectoryNotFoundException;
+import org.example.file.exception.FileDescriptorNotFoundException;
 import org.example.file.exception.InvalidFileNameException;
 import org.example.file.exception.NoFreeDescriptorException;
 
@@ -36,6 +37,15 @@ public class DirectoryTree {
         fileDescriptors[0] = root;
 
         return new DirectoryTree(root, root, fileDescriptors);
+    }
+
+    public FileDescriptor getFileDescriptorById(int id) {
+        FileDescriptor descriptor = fileDescriptors[id];
+        if (descriptor == null) {
+            throw new FileDescriptorNotFoundException("File descriptor with id %d not found.".formatted(id));
+        }
+
+        return descriptor;
     }
 
     public FileDescriptor resolvePath(String path) throws DirectoryNotFoundException {

@@ -3,6 +3,7 @@ package org.example.openFile;
 import lombok.Getter;
 import org.example.openFile.exception.FdNotAvailableException;
 import org.example.openFile.exception.InvalidFdRangeException;
+import org.example.openFile.exception.OpenFileNotFoundException;
 
 import java.util.Arrays;
 
@@ -12,9 +13,15 @@ public class OpenFileTable {
 
     public OpenFile getOpenFileByFd(int fd) {
         if (fd < 0 || fd >= openFiles.length) {
-            return null;
+            throw new InvalidFdRangeException("FD is out of range (0, %d).".formatted(openFiles.length - 1));
         }
-        return openFiles[fd];
+
+        OpenFile openFile = openFiles[fd];
+        if (openFile == null) {
+            throw new OpenFileNotFoundException("FD %d not found.".formatted(fd));
+        }
+
+        return openFile;
     }
 
     public OpenFile getOpenFileByDescriptorId(int descriptorId) {
