@@ -8,6 +8,7 @@
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/org/example/FileSystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/FileSystem.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/org/example/file/DirectoryTree.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/file/DirectoryTree.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/example/file/FileDescriptor.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/file/FileDescriptor.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -135,7 +136,8 @@
       <workItem from="1775126441135" duration="10772000" />
       <workItem from="1775209614050" duration="11218000" />
       <workItem from="1775296092260" duration="3131000" />
-      <workItem from="1775320006737" duration="487000" />
+      <workItem from="1775320006737" duration="3500000" />
+      <workItem from="1775331257403" duration="676000" />
     </task>
     <servers />
   </component>

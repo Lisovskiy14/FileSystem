@@ -29,7 +29,7 @@ public class DirectoryTree {
                 .id(0)
                 .type(FileType.DIRECTORY)
                 .directoryEntries(new HashMap<>())
-                .parentDirectoryId(0)
+                .parentId(0)
                 .build();
         fileDescriptors[0] = root;
 
@@ -46,7 +46,7 @@ public class DirectoryTree {
         if (path.startsWith("/") || directoryPath[0].equals(".") || directoryPath[0].equals("..")) {
             int skip = 1;
             if (directoryPath[0].equals("..")) {
-                current = fileDescriptors[cwd.getParentDirectoryId()];
+                current = fileDescriptors[cwd.getParentId()];
             } else if (directoryPath[0].equals(".")) {
                 current = cwd;
             } else {
@@ -79,7 +79,7 @@ public class DirectoryTree {
         while (currentDirectoryId != root.getId()) {
             FileDescriptor currentDirectory = fileDescriptors[currentDirectoryId];
             path.insert(0, "/%s".formatted(currentDirectory.getDirectoryName()));
-            currentDirectoryId = currentDirectory.getParentDirectoryId();
+            currentDirectoryId = currentDirectory.getParentId();
         }
         path.insert(0, "/root");
 
@@ -101,24 +101,50 @@ public class DirectoryTree {
         addHardLinkToDescriptor(path, descriptorId);
     }
 
+    public void removeDescriptor(FileDescriptor fileDescriptor) {
+        int descriptorId = fileDescriptor.getId();
+        fileDescriptors[descriptorId] = null;
+    }
+
     public void addHardLinkToDescriptor(String path, int descriptorId) {
         Path fullPath = Path.of(path);
-        Path directoryPath = fullPath.getParent();
-        Path fileNamePath = fullPath.getFileName();
 
-        if (fileNamePath == null) {
-            throw new InvalidFileNameException("Cannot determine file name from path %s".formatted(path));
-        }
-        String fileName = fileNamePath.toString();
+        FileDescriptor directory = resolveDirectory(fullPath);
+        String fileName = resolveFileName(fullPath);
+
+        directory.getDirectoryEntries().put(
+                fileName,
+                new DirectoryEntry(fileName, descriptorId)
+        );
+    }
+
+    public void removeHardLinkFromDescriptor(String path, int descriptorId) {
+        Path fullPath = Path.of(path);
+
+        FileDescriptor directory = resolveDirectory(fullPath);
+        String fileName = resolveFileName(fullPath);
+
+        directory.getDirectoryEntries().remove(fileName);
+    }
+
+    public FileDescriptor resolveDirectory(Path path) {
+        Path directoryPath = path.getParent();
 
         FileDescriptor directory = cwd;
         if (directoryPath != null) {
             directory = resolvePath(directoryPath.toString());
         }
 
-        directory.getDirectoryEntries().put(
-                fileName,
-                new DirectoryEntry(fileName, descriptorId)
-        );
+        return directory;
+    }
+
+    private String resolveFileName(Path path) {
+        Path fileNamePath = path.getFileName();
+
+        if (fileNamePath == null) {
+            throw new InvalidFileNameException("Cannot determine file name from path %s".formatted(path));
+        }
+
+        return fileNamePath.toString();
     }
 }

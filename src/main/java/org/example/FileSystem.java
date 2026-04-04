@@ -10,6 +10,7 @@ import org.example.openFile.OpenFile;
 import org.example.openFile.OpenFileTable;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.*;
 
 public class FileSystem {
@@ -92,6 +93,9 @@ public class FileSystem {
                 .directBlocks(new ArrayList<>())
                 .build();
 
+        FileDescriptor directory = directoryTree.resolveDirectory(Path.of(path));
+        fileDescriptor.setParentId(directory.getId());
+
         directoryTree.addNewDescriptor(path, fileDescriptor);
         System.out.printf("File %s created successfully. Descriptor number - %d\n".formatted(path, newId));
     }
@@ -104,27 +108,18 @@ public class FileSystem {
         System.out.printf("File %s linked to descriptor %d successfully.\n".formatted(path2, descriptor.getId()));
     }
 
-    private static void unlink(String name) {
-        DirectoryEntry directoryEntry = getEntryByFileName(name);
-
-        if (directoryEntry == null) {
-            System.out.println("File not found.");
-            return;
-        }
-        int descriptorId = directoryEntry.getDescriptorId();
-
-        FileDescriptor descriptor = fileDescriptors[descriptorId];
+    private static void unlink(String path) {
+        FileDescriptor descriptor = directoryTree.resolvePath(path);
         descriptor.setLinkCount(descriptor.getLinkCount() - 1);
 
-        rootDirectoryEntries.remove(directoryEntry);
+        directoryTree.removeHardLinkFromDescriptor(path, descriptor.getId());
 
         if (descriptor.getLinkCount() == 0 &&
-                openFileTable.getOpenFileByDescriptorId(descriptorId) == null) {
-            fileDescriptors[descriptorId] = null;
+                openFileTable.getOpenFileByDescriptorId(descriptor.getId()) == null) {
             descriptor.getDirectBlocks().forEach(virtualDisk::removeBlock);
         }
 
-        System.out.printf("File %s unlinked successfully.\n".formatted(name));
+        System.out.printf("File %s unlinked successfully.\n".formatted(path));
     }
 
     private static void stat(String name) {
