@@ -1,5 +1,6 @@
 package org.example.file;
 
+import lombok.Getter;
 import lombok.Setter;
 import org.example.common.FileType;
 import org.example.file.exception.DirectoryNotFoundException;
@@ -10,6 +11,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
 
+@Getter
 @Setter
 public class DirectoryTree {
     private final FileDescriptor root;

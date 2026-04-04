@@ -123,23 +123,14 @@ public class FileSystem {
     }
 
     private static void stat(String name) {
-        DirectoryEntry directoryEntry = getEntryByFileName(name);
-        if (directoryEntry == null) {
-            System.out.println("File not found.");
-            return;
-        }
-        int descriptorId = directoryEntry.getDescriptorId();
-
-        FileDescriptor descriptor = fileDescriptors[descriptorId];
+        FileDescriptor descriptor = directoryTree.resolvePath(name);
         System.out.println(descriptor.toString());
     }
 
     private static void ls() {
-        if (rootDirectoryEntries.isEmpty()) {
-            System.out.println("No files in the root directory.");
-            return;
-        }
-        for (DirectoryEntry entry : rootDirectoryEntries) {
+        List<DirectoryEntry> cwdEntries = new ArrayList<>(
+                directoryTree.getCwd().getDirectoryEntries().values());
+        for (DirectoryEntry entry : cwdEntries) {
             System.out.println(entry.toString());
         }
     }
