@@ -3,7 +3,10 @@ package org.example.file;
 import lombok.Setter;
 import org.example.common.FileType;
 import org.example.file.exception.DirectoryNotFoundException;
+import org.example.file.exception.InvalidFileNameException;
+import org.example.file.exception.NoFreeDescriptorException;
 
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
 
@@ -33,7 +36,7 @@ public class DirectoryTree {
         return new DirectoryTree(root, root, fileDescriptors);
     }
 
-    public FileDescriptor resolvePath(String path) {
+    public FileDescriptor resolvePath(String path) throws DirectoryNotFoundException {
         String[] directoryPath = path.split("/");
         if (directoryPath.length == 0) {
             throw new DirectoryNotFoundException("Path is empty.");
@@ -50,7 +53,9 @@ public class DirectoryTree {
                 current = root;
                 skip++;
             }
-            directoryPath = Arrays.stream(directoryPath).skip(skip).toArray(String[]::new);
+            directoryPath = Arrays.stream(directoryPath)
+                    .skip(skip)
+                    .toArray(String[]::new);
         } else {
             current = cwd;
         }
@@ -79,5 +84,41 @@ public class DirectoryTree {
         path.insert(0, "/root");
 
         return path.toString();
+    }
+
+    public int findFreeDescriptorId() {
+        for (int i = 1; i < fileDescriptors.length; i++) {
+            if (fileDescriptors[i] == null) {
+                return i;
+            }
+        }
+        throw new NoFreeDescriptorException("No free descriptors available.");
+    }
+
+    public void addNewDescriptor(String path, FileDescriptor fileDescriptor) {
+        int descriptorId = findFreeDescriptorId();
+        fileDescriptors[descriptorId] = fileDescriptor;
+        addHardLinkToDescriptor(path, descriptorId);
+    }
+
+    public void addHardLinkToDescriptor(String path, int descriptorId) {
+        Path fullPath = Path.of(path);
+        Path directoryPath = fullPath.getParent();
+        Path fileNamePath = fullPath.getFileName();
+
+        if (fileNamePath == null) {
+            throw new InvalidFileNameException("Cannot determine file name from path %s".formatted(path));
+        }
+        String fileName = fileNamePath.toString();
+
+        FileDescriptor directory = cwd;
+        if (directoryPath != null) {
+            directory = resolvePath(directoryPath.toString());
+        }
+
+        directory.getDirectoryEntries().put(
+                fileName,
+                new DirectoryEntry(fileName, descriptorId)
+        );
     }
 }

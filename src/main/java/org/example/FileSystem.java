@@ -28,61 +28,61 @@ public class FileSystem {
 
         Scanner scanner = new Scanner(System.in);
         while (true) {
-            System.out.printf("%s> ".formatted(directoryTree.getCwdPath()));
-            String[] command = scanner.nextLine().split(" ");
+            try {
+                System.out.printf("%s> ".formatted(directoryTree.getCwdPath()));
+                String[] command = scanner.nextLine().split(" ");
 
-            switch (command[0]) {
-                case "stat":
-                    stat(command[1]);
-                    break;
-                case "create":
-                    create(command[1]);
-                    break;
-                case "link":
-                    link(command[1], command[2]);
-                    break;
-                case "unlink":
-                    unlink(command[1]);
-                    break;
-                case "ls":
-                    ls();
-                    break;
-                case "open":
-                    open(command[1]);
-                    break;
-                case "close":
-                    close(command[1]);
-                    break;
-                case "seek":
-                    seek(command[1], command[2]);
-                    break;
-                case "read":
-                    read(command[1], command[2]);
-                    break;
-                case "write":
-                    String dataToWrite = Arrays.stream(command)
-                            .skip(2)
-                            .reduce("", (a, b) -> a + b + " ");
-                    write(command[1], dataToWrite);
-                    break;
-                case "truncate":
-                    truncate(command[1], command[2]);
-                    break;
-                case "cd":
-                    cd(command[1]);
-                    break;
-                default:
-                    System.out.println("Unknown command.");
+                switch (command[0]) {
+                    case "stat":
+                        stat(command[1]);
+                        break;
+                    case "create":
+                        create(command[1]);
+                        break;
+                    case "link":
+                        link(command[1], command[2]);
+                        break;
+                    case "unlink":
+                        unlink(command[1]);
+                        break;
+                    case "ls":
+                        ls();
+                        break;
+                    case "open":
+                        open(command[1]);
+                        break;
+                    case "close":
+                        close(command[1]);
+                        break;
+                    case "seek":
+                        seek(command[1], command[2]);
+                        break;
+                    case "read":
+                        read(command[1], command[2]);
+                        break;
+                    case "write":
+                        String dataToWrite = Arrays.stream(command)
+                                .skip(2)
+                                .reduce("", (a, b) -> a + b + " ");
+                        write(command[1], dataToWrite);
+                        break;
+                    case "truncate":
+                        truncate(command[1], command[2]);
+                        break;
+                    case "cd":
+                        cd(command[1]);
+                        break;
+                    default:
+                        System.out.println("Unknown command.");
+                }
+            } catch (Exception ex) {
+                System.out.printf("Error: %s\n".formatted(ex.getMessage()));
             }
         }
     }
 
-    private static void create(String fileName) {
-        int newId = findFreeDescriptorId();
-        if (newId == -1) {
-            System.out.println("No free descriptors available.");
-            return;
-        }
+    private static void create(String path) {
+        int newId = directoryTree.findFreeDescriptorId();
 
         FileDescriptor fileDescriptor = FileDescriptor.builder()
                 .id(newId)
@@ -92,25 +92,16 @@ public class FileSystem {
                 .directBlocks(new ArrayList<>())
                 .build();
 
-        fileDescriptors[newId] = fileDescriptor;
-
-        rootDirectoryEntries.add(new DirectoryEntry(fileName, newId));
-        System.out.printf("File %s created successfully. Descriptor number - %d\n".formatted(fileName, newId));
+        directoryTree.addNewDescriptor(path, fileDescriptor);
+        System.out.printf("File %s created successfully. Descriptor number - %d\n".formatted(path, newId));
     }
 
-    private static void link(String name1, String name2) {
-        DirectoryEntry directoryEntry = getEntryByFileName(name1);
-        if (directoryEntry == null) {
-            System.out.println("File not found.");
-            return;
-        }
-        int descriptorId = directoryEntry.getDescriptorId();
-
-        FileDescriptor descriptor = fileDescriptors[descriptorId];
+    private static void link(String path1, String path2) {
+        FileDescriptor descriptor = directoryTree.resolvePath(path1);
         descriptor.setLinkCount(descriptor.getLinkCount() + 1);
 
-        rootDirectoryEntries.add(new DirectoryEntry(name2, descriptorId));
-        System.out.printf("File %s linked to descriptor %d successfully.\n".formatted(name1, descriptorId));
+        directoryTree.addHardLinkToDescriptor(path2, descriptor.getId());
+        System.out.printf("File %s linked to descriptor %d successfully.\n".formatted(path2, descriptor.getId()));
     }
 
     private static void unlink(String name) {
@@ -372,6 +363,8 @@ public class FileSystem {
         }
         directoryTree.setCwd(fileDescriptor);
     }
+
+
 
     private static int findFreeDescriptorId() {
         for (int i = 0; i < fileDescriptors.length; i++) {
