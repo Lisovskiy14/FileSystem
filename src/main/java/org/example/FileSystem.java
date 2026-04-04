@@ -135,38 +135,21 @@ public class FileSystem {
         }
     }
 
-    private static void open(String name) {
-        DirectoryEntry directoryEntry = getEntryByFileName(name);
-        if (directoryEntry == null) {
-            System.out.println("File not found.");
-            return;
-        }
-        int descriptorId = directoryEntry.getDescriptorId();
+    private static void open(String path) {
+        FileDescriptor descriptor = directoryTree.resolvePath(path);
+        int descriptorId = descriptor.getId();
 
         int fd = openFileTable.addOpenFile(descriptorId);
 
-        if (fd == -1) {
-            System.out.println("No free FD available.");
-            return;
-        }
-
-        System.out.printf("File %s opened successfully. FD: %d\n".formatted(name, fd));
+        System.out.printf("File %s opened successfully. FD: %d\n".formatted(path, fd));
     }
 
     private static void close(String stringFd) {
-        int fd;
-        try {
-            fd = Integer.parseInt(stringFd);
-        } catch (NumberFormatException ex) {
-            System.out.println("Invalid FD.");
-            return;
-        }
+        int fd = Integer.parseInt(stringFd);
 
-        if (openFileTable.removeOpenFile(fd)) {
-            System.out.printf("FD %d closed successfully.\n".formatted(fd));
-        } else {
-            System.out.println("FD not found.");
-        }
+        openFileTable.removeOpenFile(fd);
+
+        System.out.printf("FD %d closed successfully.\n".formatted(fd));
     }
 
     private static void seek(String stringFd, String stringOffset) {

@@ -1,6 +1,8 @@
 package org.example.openFile;
 
 import lombok.Getter;
+import org.example.openFile.exception.FdNotAvailableException;
+import org.example.openFile.exception.InvalidFdRangeException;
 
 import java.util.Arrays;
 
@@ -24,21 +26,17 @@ public class OpenFileTable {
 
     public int addOpenFile(int descriptorId) {
         OpenFile openFile = new OpenFile(descriptorId, 0);
+
         int fd = findFreeFd();
-
-        if (fd != -1) {
-            openFiles[fd] = openFile;
-        }
-
+        openFiles[fd] = openFile;
         return fd;
     }
 
-    public boolean removeOpenFile(int fd) {
+    public void removeOpenFile(int fd) {
         if (fd < 0 || fd >= openFiles.length) {
-            return false;
+            throw new InvalidFdRangeException("FD is out of range (0, %d).".formatted(openFiles.length - 1));
         }
         openFiles[fd] = null;
-        return true;
     }
 
     private int findFreeFd() {
@@ -47,6 +45,6 @@ public class OpenFileTable {
                 return i;
             }
         }
-        return -1;
+        throw new FdNotAvailableException("No free FDs available.");
     }
 }
