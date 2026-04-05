@@ -8,8 +8,6 @@
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/org/example/FileSystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/FileSystem.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/org/example/data/VirtualDisk.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/data/VirtualDisk.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/example/file/DirectoryTree.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/file/DirectoryTree.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/org/example/openFile/OpenFileTable.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/openFile/OpenFileTable.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -17,7 +15,7 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="26" />
+    <option name="cachedIndexableFilesCount" value="30" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="ExternalProjectsData">
@@ -138,7 +136,8 @@
       <workItem from="1775209614050" duration="11218000" />
       <workItem from="1775296092260" duration="3131000" />
       <workItem from="1775320006737" duration="3500000" />
-      <workItem from="1775331257403" duration="2807000" />
+      <workItem from="1775331257403" duration="3998000" />
+      <workItem from="1775403731651" duration="307000" />
     </task>
     <servers />
   </component>

@@ -2,7 +2,6 @@ package org.example;
 
 import org.example.common.FileType;
 import org.example.data.VirtualDisk;
-import org.example.exception.EmptyFileException;
 import org.example.exception.InvalidFileTypeException;
 import org.example.file.DirectoryEntry;
 import org.example.file.DirectoryTree;
@@ -16,13 +15,13 @@ import java.util.*;
 
 public class FileSystem {
     private static DirectoryTree directoryTree;
-    private static final FileDescriptor[] fileDescriptors = new FileDescriptor[100];
-    private static final List<DirectoryEntry> rootDirectoryEntries = new ArrayList<>();
-    private static final OpenFileTable openFileTable = new OpenFileTable();
-    private static final VirtualDisk virtualDisk = new VirtualDisk(100);
+    private static OpenFileTable openFileTable;
+    private static VirtualDisk virtualDisk;
 
     private static void init() {
         directoryTree = DirectoryTree.init();
+        openFileTable = new OpenFileTable();
+        virtualDisk = new VirtualDisk(100);
     }
 
     public static void main(String[] args) {
@@ -179,9 +178,9 @@ public class FileSystem {
                 offset,
                 size
         );
-        String stringReadData = new String(readData, StandardCharsets.UTF_8);
 
         openFile.setCurrentOffset(readData.length);
+        String stringReadData = new String(readData, StandardCharsets.UTF_8);
 
         System.out.printf("Read %d bytes to offset %d: %s\n"
                 .formatted(readData.length, openFile.getCurrentOffset(), stringReadData));
@@ -189,104 +188,35 @@ public class FileSystem {
 
     private static void write(String stringFd, String stringData) {
         byte[] data = stringData.getBytes();
-        int fd;
-        try {
-            fd = Integer.parseInt(stringFd);
-        } catch (NumberFormatException ex) {
-            System.out.println("Invalid FD or Size.");
-            return;
-        }
+        int fd = Integer.parseInt(stringFd);
 
         OpenFile openFile = openFileTable.getOpenFileByFd(fd);
-        if (openFile == null) {
-            System.out.println("FD not found.");
-            return;
-        }
         int descriptorId = openFile.getDescriptorId();
+        int offset = openFile.getCurrentOffset();
 
+        FileDescriptor descriptor = directoryTree.getFileDescriptorById(descriptorId);
+        List<Integer> directBlocks = descriptor.getDirectBlocks();
 
-        FileDescriptor descriptor = fileDescriptors[descriptorId];
-        List<Integer> blockLinks = descriptor.getDirectBlocks();
-        int sizeToWrite = data.length;
-        int bytesWritten = 0;
+        int newOffset = virtualDisk.writeBlocksWithOffset(data, directBlocks, offset);
+        openFile.setCurrentOffset(newOffset);
 
-        int blockSize = virtualDisk.getBlockSize();
-
-        while (bytesWritten < sizeToWrite) {
-            int currentOffset = openFile.getCurrentOffset();
-            int logicalBlockIndex = currentOffset / blockSize;
-            int offsetInBlock = currentOffset % blockSize;
-
-            int spaceLeftInBlock = blockSize - offsetInBlock;
-            int bytesToWrite = Math.min(spaceLeftInBlock, sizeToWrite - bytesWritten);
-
-            int physicalBlockIndex;
-            if (logicalBlockIndex >= blockLinks.size()) {
-                physicalBlockIndex = virtualDisk.pollFreeIndex();
-                blockLinks.add(physicalBlockIndex);
-            } else {
-                physicalBlockIndex = blockLinks.get(logicalBlockIndex);
-            }
-
-            System.arraycopy(
-                    data, bytesWritten,
-                    virtualDisk.getBlock(physicalBlockIndex), offsetInBlock,
-                    bytesToWrite
-            );
-
-            openFile.setCurrentOffset(currentOffset + bytesToWrite);
-            bytesWritten += bytesToWrite;
-
-            if (openFile.getCurrentOffset() > descriptor.getSize()) {
-                descriptor.setSize(openFile.getCurrentOffset());
-            }
+        if (newOffset > descriptor.getSize()) {
+            descriptor.setSize(newOffset);
         }
 
-        System.out.printf("Wrote %d bytes to offset %d.\n".formatted(sizeToWrite, openFile.getCurrentOffset()));
+        System.out.printf("Wrote %d bytes to offset %d.\n".formatted(data.length, openFile.getCurrentOffset()));
     }
 
-    private static void truncate(String name, String stringSize) {
-        int size;
-        try {
-            size = Integer.parseInt(stringSize);
-        } catch (NumberFormatException ex) {
-            System.out.println("Invalid Size.");
-            return;
-        }
+    private static void truncate(String path, String stringSize) {
+        int size = Integer.parseInt(stringSize);
 
-        DirectoryEntry directoryEntry = getEntryByFileName(name);
-        if (directoryEntry == null) {
-            System.out.println("File not found.");
-            return;
-        }
-        int descriptorId = directoryEntry.getDescriptorId();
-
-        FileDescriptor fileDescriptor = fileDescriptors[descriptorId];
-        List<Integer> blockLinks = fileDescriptor.getDirectBlocks();
-        int blockSize = virtualDisk.getBlockSize();
+        FileDescriptor fileDescriptor = directoryTree.resolvePath(path);
+        List<Integer> directBlocks = fileDescriptor.getDirectBlocks();
 
         if (size < fileDescriptor.getSize()) {
-            int logicalBlockIndex = size / blockSize;
-            int offsetInBlock = size % blockSize;
-
-            System.arraycopy(
-                    new byte[blockSize], 0,
-                    virtualDisk.getBlock(blockLinks.get(logicalBlockIndex)), offsetInBlock,
-                    blockSize - offsetInBlock
-            );
-
-            List<Integer> linksToRemove = new ArrayList<>();
-            blockLinks.stream()
-                    .filter(i -> i > logicalBlockIndex)
-                    .forEach(i -> {
-                        linksToRemove.add(i);
-                        virtualDisk.removeBlock(i);
-                    });
-            blockLinks.removeAll(linksToRemove);
-
+            fileDescriptor.setDirectBlocks(virtualDisk.truncateBlocks(directBlocks, size));
             fileDescriptor.setSize(size);
-
-            System.out.printf("Truncated file %s to size %d.\n".formatted(name, size));
+            System.out.printf("Truncated file %s to size %d.\n".formatted(path, size));
         }
     }
 
@@ -296,23 +226,5 @@ public class FileSystem {
             throw new InvalidFileTypeException("Path %s is not a directory.".formatted(path));
         }
         directoryTree.setCwd(fileDescriptor);
-    }
-
-
-
-    private static int findFreeDescriptorId() {
-        for (int i = 0; i < fileDescriptors.length; i++) {
-            if (fileDescriptors[i] == null) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private static DirectoryEntry getEntryByFileName(String name) {
-        return rootDirectoryEntries.stream()
-                .filter(entry -> entry.getName().equals(name))
-                .findFirst()
-                .orElse(null);
     }
 }

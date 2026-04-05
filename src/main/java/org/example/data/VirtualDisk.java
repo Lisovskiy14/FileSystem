@@ -9,7 +9,7 @@ import java.util.Queue;
 
 @Getter
 public class VirtualDisk {
-    private final int blockSize = 20;
+    private final int BLOCK_SIZE = 20;
     private final byte[][] blocks;
     private Queue<Integer> freeIndexQueue;
 
@@ -55,6 +55,61 @@ public class VirtualDisk {
         }
 
         return readDataArray;
+    }
+
+    public int writeBlocksWithOffset(byte[] data, List<Integer> directBlocks, int offset) {
+        int sizeToWrite = data.length;
+        int bytesWritten = 0;
+
+        int currentOffset = offset;
+        while (bytesWritten < sizeToWrite) {
+            int logicalBlockIndex = currentOffset / BLOCK_SIZE;
+            int offsetInBlock = currentOffset % BLOCK_SIZE;
+
+            int spaceLeftInBlock = BLOCK_SIZE - offsetInBlock;
+            int bytesToWrite = Math.min(spaceLeftInBlock, sizeToWrite - bytesWritten);
+
+            int physicalBlockIndex;
+            if (logicalBlockIndex >= directBlocks.size()) {
+                physicalBlockIndex = pollFreeIndex();
+                directBlocks.add(physicalBlockIndex);
+            } else {
+                physicalBlockIndex = directBlocks.get(logicalBlockIndex);
+            }
+
+            System.arraycopy(
+                    data, bytesWritten,
+                    getBlock(physicalBlockIndex), offsetInBlock,
+                    bytesToWrite
+            );
+
+            currentOffset += bytesToWrite;
+            bytesWritten += bytesToWrite;
+        }
+
+        return currentOffset;
+    }
+
+    public List<Integer> truncateBlocks(List<Integer> directBlocks, int size) {
+        int logicalBlockIndex = size / BLOCK_SIZE;
+        int offsetInBlock = size % BLOCK_SIZE;
+
+        System.arraycopy(
+                new byte[BLOCK_SIZE], 0,
+                getBlock(directBlocks.get(logicalBlockIndex)), offsetInBlock,
+                BLOCK_SIZE - offsetInBlock
+        );
+
+        List<Integer> linksToRemove = new ArrayList<>();
+        directBlocks.stream()
+                .filter(i -> i > logicalBlockIndex)
+                .forEach(i -> {
+                    linksToRemove.add(i);
+                    removeBlock(i);
+                });
+        directBlocks.removeAll(linksToRemove);
+
+        return directBlocks;
     }
 
     private List<Byte> readAllBlocks(List<Integer> directBlocks) {
