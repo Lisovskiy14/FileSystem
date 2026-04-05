@@ -73,6 +73,12 @@ public class FileSystem {
                     case "cd":
                         cd(command[1]);
                         break;
+                    case "mkdir":
+                        mkdir(command[1]);
+                        break;
+                    case "rmdir":
+                        rmdir(command[1]);
+                        break;
                     default:
                         System.out.println("Unknown command.");
                 }
@@ -117,6 +123,7 @@ public class FileSystem {
         if (descriptor.getLinkCount() == 0 &&
                 openFileTable.getOpenFileByDescriptorId(descriptor.getId()) == null) {
             descriptor.getDirectBlocks().forEach(virtualDisk::removeBlock);
+            directoryTree.removeDescriptor(descriptor);
         }
 
         System.out.printf("File %s unlinked successfully.\n".formatted(path));
@@ -219,6 +226,26 @@ public class FileSystem {
             System.out.printf("Truncated file %s to size %d.\n".formatted(path, size));
         }
     }
+
+    private static void mkdir(String path) {
+        int descriptorId = directoryTree.findFreeDescriptorId();
+        Path fullPath = Path.of(path);
+        String directoryName = directoryTree.resolveFileName(fullPath);
+
+        FileDescriptor newDirectory = FileDescriptor.builder()
+                .id(descriptorId)
+                .type(FileType.DIRECTORY)
+                .directoryName(directoryName)
+                .directoryEntries(new HashMap<>())
+                .build();
+
+        FileDescriptor parentDirectory = directoryTree.resolveDirectory(fullPath);
+        newDirectory.setParentId(parentDirectory.getId());
+
+        directoryTree.addNewDescriptor(path, newDirectory);
+    }
+
+    private static void rmdir(String path) {}
 
     private static void cd(String path) {
         FileDescriptor fileDescriptor = directoryTree.resolvePath(path);

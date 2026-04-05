@@ -108,7 +108,7 @@ public class DirectoryTree {
     }
 
     public void addNewDescriptor(String path, FileDescriptor fileDescriptor) {
-        int descriptorId = findFreeDescriptorId();
+        int descriptorId = fileDescriptor.getId();
         fileDescriptors[descriptorId] = fileDescriptor;
         addHardLinkToDescriptor(path, descriptorId);
     }
@@ -150,7 +150,7 @@ public class DirectoryTree {
         return directory;
     }
 
-    private String resolveFileName(Path path) {
+    public String resolveFileName(Path path) {
         Path fileNamePath = path.getFileName();
 
         if (fileNamePath == null) {
