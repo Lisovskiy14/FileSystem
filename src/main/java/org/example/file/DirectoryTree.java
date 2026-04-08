@@ -11,6 +11,7 @@ import org.example.file.exception.NoFreeDescriptorException;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -28,13 +29,18 @@ public class DirectoryTree {
     public static DirectoryTree init() {
         FileDescriptor[] fileDescriptors = new FileDescriptor[100];
 
+        int descriptorId = 0;
+
+        Map<String, DirectoryEntry> directoryEntries = new HashMap<>();
+        directoryEntries.put(".", new DirectoryEntry(".", descriptorId));
+        directoryEntries.put("..", new DirectoryEntry("..", descriptorId));
+
         FileDescriptor root = FileDescriptor.builder()
-                .id(0)
+                .id(descriptorId)
                 .type(FileType.DIRECTORY)
-                .directoryEntries(new HashMap<>())
-                .parentId(0)
+                .directoryEntries(directoryEntries)
                 .build();
-        fileDescriptors[0] = root;
+        fileDescriptors[descriptorId] = root;
 
         return new DirectoryTree(root, root, fileDescriptors);
     }
@@ -58,7 +64,7 @@ public class DirectoryTree {
         if (path.startsWith("/") || directoryPath[0].equals(".") || directoryPath[0].equals("..")) {
             int skip = 1;
             if (directoryPath[0].equals("..")) {
-                current = fileDescriptors[cwd.getParentId()];
+                current = fileDescriptors[cwd.getDirectoryEntries().get("..").getDescriptorId()];
             } else if (directoryPath[0].equals(".")) {
                 current = cwd;
             } else {
@@ -85,14 +91,31 @@ public class DirectoryTree {
     }
 
     public String getCwdPath() {
-        StringBuilder path = new StringBuilder();
+        if (cwd.getId() == root.getId()) {
+            return "/root";
+        }
 
+        StringBuilder path = new StringBuilder();
         int currentDirectoryId = cwd.getId();
+
         while (currentDirectoryId != root.getId()) {
             FileDescriptor currentDirectory = fileDescriptors[currentDirectoryId];
-            path.insert(0, "/%s".formatted(currentDirectory.getDirectoryName()));
-            currentDirectoryId = currentDirectory.getParentId();
+
+            int parentDirectoryId = currentDirectory.getDirectoryEntries().get("..").getDescriptorId();
+            FileDescriptor parentDirectory = fileDescriptors[parentDirectoryId];
+
+            int currentDirectoryIdFinal = currentDirectoryId;
+            String directoryName = parentDirectory.getDirectoryEntries().values().stream()
+                    .filter(entry -> entry.getDescriptorId() == currentDirectoryIdFinal)
+                    .filter(entry -> !entry.getName().equals(".") && !entry.getName().equals(".."))
+                    .findFirst()
+                    .map(DirectoryEntry::getName)
+                    .orElse("unknown");
+
+            path.insert(0, "/%s".formatted(directoryName));
+            currentDirectoryId = parentDirectoryId;
         }
+
         path.insert(0, "/root");
 
         return path.toString();

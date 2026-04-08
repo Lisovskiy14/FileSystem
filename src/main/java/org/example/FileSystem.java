@@ -2,6 +2,7 @@ package org.example;
 
 import org.example.common.FileType;
 import org.example.data.VirtualDisk;
+import org.example.exception.CannotRemoveFileException;
 import org.example.exception.InvalidFileTypeException;
 import org.example.file.DirectoryEntry;
 import org.example.file.DirectoryTree;
@@ -11,6 +12,7 @@ import org.example.openFile.OpenFileTable;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 
 public class FileSystem {
@@ -31,7 +33,7 @@ public class FileSystem {
         while (true) {
             try {
                 System.out.printf("%s> ".formatted(directoryTree.getCwdPath()));
-                String[] command = scanner.nextLine().split(" ");
+                String[] command = scanner.nextLine().trim().split(" ");
 
                 switch (command[0]) {
                     case "stat":
@@ -80,7 +82,9 @@ public class FileSystem {
                         rmdir(command[1]);
                         break;
                     default:
-                        System.out.println("Unknown command.");
+                        if (!command[0].isBlank()) {
+                            System.out.println("Unknown command: " + command[0]);
+                        }
                 }
             } catch (Exception ex) {
                 System.out.printf("Error: %s\n".formatted(ex.getMessage()));
@@ -99,8 +103,15 @@ public class FileSystem {
                 .directBlocks(new ArrayList<>())
                 .build();
 
-        FileDescriptor directory = directoryTree.resolveDirectory(Path.of(path));
-        fileDescriptor.setParentId(directory.getId());
+        Path fullPath = Paths.get(path);
+
+        FileDescriptor directory = directoryTree.resolveDirectory(fullPath);
+        String fileName = directoryTree.resolveFileName(fullPath);
+
+        directory.getDirectoryEntries().put(
+                fileName,
+                new DirectoryEntry(fileName, newId)
+        );
 
         directoryTree.addNewDescriptor(path, fileDescriptor);
         System.out.printf("File %s created successfully. Descriptor number - %d\n".formatted(path, newId));
@@ -137,6 +148,13 @@ public class FileSystem {
     private static void ls() {
         List<DirectoryEntry> cwdEntries = new ArrayList<>(
                 directoryTree.getCwd().getDirectoryEntries().values());
+
+        List<DirectoryEntry> entriesToExclude = new ArrayList<>();
+        cwdEntries.stream()
+                .filter(entry -> entry.getName().equals(".") || entry.getName().equals(".."))
+                .forEach(entriesToExclude::add);
+        cwdEntries.removeAll(entriesToExclude);
+
         for (DirectoryEntry entry : cwdEntries) {
             System.out.println(entry.toString());
         }
@@ -232,20 +250,43 @@ public class FileSystem {
         Path fullPath = Path.of(path);
         String directoryName = directoryTree.resolveFileName(fullPath);
 
+        FileDescriptor parentDirectory = directoryTree.resolveDirectory(fullPath);
+        parentDirectory.getDirectoryEntries().put(
+                directoryName,
+                new DirectoryEntry(directoryName, descriptorId)
+        );
+
+        Map<String, DirectoryEntry>  directoryEntries = new HashMap<>();
+        directoryEntries.put(".", new DirectoryEntry(".", descriptorId));
+        directoryEntries.put("..", new DirectoryEntry("..", parentDirectory.getId()));
+
         FileDescriptor newDirectory = FileDescriptor.builder()
                 .id(descriptorId)
                 .type(FileType.DIRECTORY)
-                .directoryName(directoryName)
-                .directoryEntries(new HashMap<>())
+                .directoryEntries(directoryEntries)
                 .build();
-
-        FileDescriptor parentDirectory = directoryTree.resolveDirectory(fullPath);
-        newDirectory.setParentId(parentDirectory.getId());
 
         directoryTree.addNewDescriptor(path, newDirectory);
     }
 
-    private static void rmdir(String path) {}
+    private static void rmdir(String path) {
+        FileDescriptor directory = directoryTree.resolvePath(path);
+        if (directory.getType() != FileType.DIRECTORY) {
+            throw new InvalidFileTypeException("Provided file is not a directory: " + directory.getType());
+        }
+
+        Map<String, DirectoryEntry> directoryEntries = directory.getDirectoryEntries();
+        if (directoryEntries.size() == 2) {
+            int parentDirectoryId = directory.getDirectoryEntries().get("..").getDescriptorId();
+
+            directoryTree.removeHardLinkFromDescriptor(path, parentDirectoryId);
+            directoryTree.removeDescriptor(directory);
+        } else {
+            throw new CannotRemoveFileException("Target directory is not empty.");
+        }
+
+        System.out.printf("Directory %s was removed successfully.\n", path);
+    }
 
     private static void cd(String path) {
         FileDescriptor fileDescriptor = directoryTree.resolvePath(path);

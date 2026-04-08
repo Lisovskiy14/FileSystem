@@ -21,6 +21,4 @@ public class FileDescriptor {
     private List<Integer> directBlocks;
     private int indirectBlock;
     private Map<String, DirectoryEntry> directoryEntries;
-    private int parentId;
-    private String directoryName;
 }
