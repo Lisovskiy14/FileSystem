@@ -3,14 +3,17 @@ package org.example.file;
 import lombok.Getter;
 import lombok.Setter;
 import org.example.common.FileType;
+import org.example.data.VirtualDisk;
 import org.example.file.exception.DirectoryNotFoundException;
 import org.example.file.exception.FileDescriptorNotFoundException;
 import org.example.file.exception.InvalidFileNameException;
 import org.example.file.exception.NoFreeDescriptorException;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Getter
@@ -19,14 +22,19 @@ public class DirectoryTree {
     private final FileDescriptor root;
     private FileDescriptor cwd;
     private FileDescriptor[] fileDescriptors;
+    private VirtualDisk virtualDisk;
 
-    private DirectoryTree(FileDescriptor root, FileDescriptor cwd, FileDescriptor[] fileDescriptors) {
+    private DirectoryTree(
+            FileDescriptor root, FileDescriptor cwd,
+            FileDescriptor[] fileDescriptors, VirtualDisk virtualDisk
+    ) {
         this.root = root;
         this.cwd = cwd;
         this.fileDescriptors = fileDescriptors;
+        this.virtualDisk = virtualDisk;
     }
 
-    public static DirectoryTree init() {
+    public static DirectoryTree init(VirtualDisk virtualDisk) {
         FileDescriptor[] fileDescriptors = new FileDescriptor[100];
 
         int descriptorId = 0;
@@ -42,7 +50,7 @@ public class DirectoryTree {
                 .build();
         fileDescriptors[descriptorId] = root;
 
-        return new DirectoryTree(root, root, fileDescriptors);
+        return new DirectoryTree(root, root, fileDescriptors, virtualDisk);
     }
 
     public FileDescriptor getFileDescriptorById(int id) {
@@ -54,49 +62,17 @@ public class DirectoryTree {
         return descriptor;
     }
 
-    public FileDescriptor resolvePath(String path) throws DirectoryNotFoundException {
-        String[] directoryPath = path.split("/");
-        if (directoryPath.length == 0) {
-            throw new DirectoryNotFoundException("Path is empty.");
-        }
-
-        FileDescriptor current;
-        if (path.startsWith("/") || directoryPath[0].equals(".") || directoryPath[0].equals("..")) {
-            int skip = 1;
-            if (directoryPath[0].equals("..")) {
-                current = fileDescriptors[cwd.getDirectoryEntries().get("..").getDescriptorId()];
-            } else if (directoryPath[0].equals(".")) {
-                current = cwd;
-            } else {
-                current = root;
-                skip++;
-            }
-            directoryPath = Arrays.stream(directoryPath)
-                    .skip(skip)
-                    .toArray(String[]::new);
-        } else {
-            current = cwd;
-        }
-
-        for (String directoryName : directoryPath) {
-            DirectoryEntry currentDirectoryEntry = current.getDirectoryEntries().get(directoryName);
-            if (currentDirectoryEntry == null) {
-                throw new DirectoryNotFoundException("File %s not found in path %s"
-                        .formatted(directoryName, path));
-            }
-            current = fileDescriptors[currentDirectoryEntry.getDescriptorId()];
-        }
-
-        return current;
+    public FileDescriptor resolvePath(String path) {
+        return resolvePathWithRecursion(path, 0);
     }
 
-    public String getCwdPath() {
-        if (cwd.getId() == root.getId()) {
+    public String getPath(FileDescriptor target) {
+        if (target.getId() == root.getId()) {
             return "/root";
         }
 
         StringBuilder path = new StringBuilder();
-        int currentDirectoryId = cwd.getId();
+        int currentDirectoryId = target.getId();
 
         while (currentDirectoryId != root.getId()) {
             FileDescriptor currentDirectory = fileDescriptors[currentDirectoryId];
@@ -153,7 +129,7 @@ public class DirectoryTree {
         );
     }
 
-    public void removeHardLinkFromDescriptor(String path, int descriptorId) {
+    public void removeHardLink(String path) {
         Path fullPath = Path.of(path);
 
         FileDescriptor directory = resolveDirectory(fullPath);
@@ -181,5 +157,47 @@ public class DirectoryTree {
         }
 
         return fileNamePath.toString();
+    }
+
+    private FileDescriptor resolvePathWithRecursion(String path, int recursionCount) throws DirectoryNotFoundException {
+        String[] directoryPath = path.split("/");
+        if (directoryPath.length == 0) {
+            throw new DirectoryNotFoundException("Path is empty.");
+        }
+
+        FileDescriptor current;
+        if (path.startsWith("/") || directoryPath[0].equals(".") || directoryPath[0].equals("..")) {
+            int skip = 1;
+            if (directoryPath[0].equals("..")) {
+                current = fileDescriptors[cwd.getDirectoryEntries().get("..").getDescriptorId()];
+            } else if (directoryPath[0].equals(".")) {
+                current = cwd;
+            } else {
+                current = root;
+                skip++;
+            }
+            directoryPath = Arrays.stream(directoryPath)
+                    .skip(skip)
+                    .toArray(String[]::new);
+        } else {
+            current = cwd;
+        }
+
+        for (String directoryName : directoryPath) {
+            DirectoryEntry currentDirectoryEntry = current.getDirectoryEntries().get(directoryName);
+            if (currentDirectoryEntry == null) {
+                throw new DirectoryNotFoundException("File %s not found in path %s"
+                        .formatted(directoryName, path));
+            }
+            current = fileDescriptors[currentDirectoryEntry.getDescriptorId()];
+
+            if (current.getType() == FileType.SYMLINK) {
+                byte[] dataBytes = virtualDisk.readAllBlocks(current.getDirectBlocks());
+                String fullPath = new String(dataBytes, StandardCharsets.UTF_8);
+                current = resolvePathWithRecursion(fullPath, ++recursionCount);
+            }
+        }
+
+        return current;
     }
 }

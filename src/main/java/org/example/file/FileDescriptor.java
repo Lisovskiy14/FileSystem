@@ -12,7 +12,6 @@ import java.util.Map;
 @Getter
 @Setter
 @Builder
-@ToString
 public class FileDescriptor {
     private int id;
     private FileType type;
@@ -21,4 +20,19 @@ public class FileDescriptor {
     private List<Integer> directBlocks;
     private int indirectBlock;
     private Map<String, DirectoryEntry> directoryEntries;
+
+    @Override
+    public String toString() {
+        String pattern = """
+                Desc. Id: %d
+                Type: %s
+                LinkCount: %d
+                Size: %d
+                DirectBlocks: %s
+                IndirectBlock: %d
+                DirectoryEntries: %s
+                """.trim();
+
+        return String.format(pattern, id, type, linkCount, size, directBlocks, indirectBlock, directoryEntries);
+    }
 }

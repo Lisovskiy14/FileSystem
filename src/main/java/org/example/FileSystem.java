@@ -2,6 +2,7 @@ package org.example;
 
 import org.example.common.FileType;
 import org.example.data.VirtualDisk;
+import org.example.exception.CannotCreateFileException;
 import org.example.exception.CannotRemoveFileException;
 import org.example.exception.InvalidFileTypeException;
 import org.example.file.DirectoryEntry;
@@ -12,7 +13,6 @@ import org.example.openFile.OpenFileTable;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 
 public class FileSystem {
@@ -21,9 +21,9 @@ public class FileSystem {
     private static VirtualDisk virtualDisk;
 
     private static void init() {
-        directoryTree = DirectoryTree.init();
-        openFileTable = new OpenFileTable();
         virtualDisk = new VirtualDisk(100);
+        directoryTree = DirectoryTree.init(virtualDisk);
+        openFileTable = new OpenFileTable();
     }
 
     public static void main(String[] args) {
@@ -32,7 +32,8 @@ public class FileSystem {
         Scanner scanner = new Scanner(System.in);
         while (true) {
             try {
-                System.out.printf("%s> ".formatted(directoryTree.getCwdPath()));
+                FileDescriptor cwd = directoryTree.getCwd();
+                System.out.printf("%s> ".formatted(directoryTree.getPath(cwd)));
                 String[] command = scanner.nextLine().trim().split(" ");
 
                 switch (command[0]) {
@@ -81,6 +82,9 @@ public class FileSystem {
                     case "rmdir":
                         rmdir(command[1]);
                         break;
+                    case "symlink":
+                        symlink(command[1], command[2]);
+                        break;
                     default:
                         if (!command[0].isBlank()) {
                             System.out.println("Unknown command: " + command[0]);
@@ -103,18 +107,7 @@ public class FileSystem {
                 .directBlocks(new ArrayList<>())
                 .build();
 
-        Path fullPath = Paths.get(path);
-
-        FileDescriptor directory = directoryTree.resolveDirectory(fullPath);
-        String fileName = directoryTree.resolveFileName(fullPath);
-
-        directory.getDirectoryEntries().put(
-                fileName,
-                new DirectoryEntry(fileName, newId)
-        );
-
         directoryTree.addNewDescriptor(path, fileDescriptor);
-        System.out.printf("File %s created successfully. Descriptor number - %d\n".formatted(path, newId));
     }
 
     private static void link(String path1, String path2) {
@@ -129,7 +122,7 @@ public class FileSystem {
         FileDescriptor descriptor = directoryTree.resolvePath(path);
         descriptor.setLinkCount(descriptor.getLinkCount() - 1);
 
-        directoryTree.removeHardLinkFromDescriptor(path, descriptor.getId());
+        directoryTree.removeHardLink(path);
 
         if (descriptor.getLinkCount() == 0 &&
                 openFileTable.getOpenFileByDescriptorId(descriptor.getId()) == null) {
@@ -207,8 +200,7 @@ public class FileSystem {
         openFile.setCurrentOffset(readData.length);
         String stringReadData = new String(readData, StandardCharsets.UTF_8);
 
-        System.out.printf("Read %d bytes to offset %d: %s\n"
-                .formatted(readData.length, openFile.getCurrentOffset(), stringReadData));
+        System.out.println(stringReadData);
     }
 
     private static void write(String stringFd, String stringData) {
@@ -247,14 +239,9 @@ public class FileSystem {
 
     private static void mkdir(String path) {
         int descriptorId = directoryTree.findFreeDescriptorId();
-        Path fullPath = Path.of(path);
-        String directoryName = directoryTree.resolveFileName(fullPath);
 
+        Path fullPath = Path.of(path);
         FileDescriptor parentDirectory = directoryTree.resolveDirectory(fullPath);
-        parentDirectory.getDirectoryEntries().put(
-                directoryName,
-                new DirectoryEntry(directoryName, descriptorId)
-        );
 
         Map<String, DirectoryEntry>  directoryEntries = new HashMap<>();
         directoryEntries.put(".", new DirectoryEntry(".", descriptorId));
@@ -267,6 +254,8 @@ public class FileSystem {
                 .build();
 
         directoryTree.addNewDescriptor(path, newDirectory);
+
+        directoryTree.setCwd(newDirectory);
     }
 
     private static void rmdir(String path) {
@@ -277,15 +266,11 @@ public class FileSystem {
 
         Map<String, DirectoryEntry> directoryEntries = directory.getDirectoryEntries();
         if (directoryEntries.size() == 2) {
-            int parentDirectoryId = directory.getDirectoryEntries().get("..").getDescriptorId();
-
-            directoryTree.removeHardLinkFromDescriptor(path, parentDirectoryId);
+            directoryTree.removeHardLink(path);
             directoryTree.removeDescriptor(directory);
         } else {
             throw new CannotRemoveFileException("Target directory is not empty.");
         }
-
-        System.out.printf("Directory %s was removed successfully.\n", path);
     }
 
     private static void cd(String path) {
@@ -294,5 +279,37 @@ public class FileSystem {
             throw new InvalidFileTypeException("Path %s is not a directory.".formatted(path));
         }
         directoryTree.setCwd(fileDescriptor);
+    }
+
+    private static void symlink(String str, String path) {
+        // Here the str value must be validated to be sure it is a valid path.
+        // resolvePath() method will throw an exception if the path is incorrect.
+        FileDescriptor targetDescriptor = directoryTree.resolvePath(str);
+        String fullPath = directoryTree.getPath(targetDescriptor);
+
+        if (fullPath.length() > virtualDisk.getBLOCK_SIZE()) {
+            throw new CannotCreateFileException("Provided file is too large: %d. Max size of symlink is %d."
+                    .formatted(fullPath.length(), virtualDisk.getBLOCK_SIZE()));
+        }
+
+        int descriptorId = directoryTree.findFreeDescriptorId();
+        byte[] block = fullPath.getBytes(StandardCharsets.UTF_8);
+
+        int freeIndex = virtualDisk.pollFreeIndex();
+        System.arraycopy(
+                block, 0,
+                virtualDisk.getBlock(freeIndex), 0,
+                block.length
+        );
+
+        FileDescriptor fileDescriptor = FileDescriptor.builder()
+                .id(descriptorId)
+                .type(FileType.SYMLINK)
+                .linkCount(1)
+                .size(fullPath.length())
+                .directBlocks(List.of(freeIndex))
+                .build();
+
+        directoryTree.addNewDescriptor(path, fileDescriptor);
     }
 }

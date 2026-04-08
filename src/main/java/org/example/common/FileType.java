@@ -1,5 +1,5 @@
 package org.example.common;
 
 public enum FileType {
-    REGULAR, DIRECTORY
+    REGULAR, DIRECTORY, SYMLINK
 }

@@ -5,10 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="bf89b240-7283-454a-8df7-4167f3a6cc77" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/gradle.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/gradle.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/org/example/FileSystem.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/FileSystem.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/example/common/FileType.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/common/FileType.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/example/data/VirtualDisk.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/data/VirtualDisk.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/org/example/file/DirectoryTree.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/file/DirectoryTree.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/org/example/file/FileDescriptor.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/file/FileDescriptor.java" afterDir="false" />
     </list>
@@ -144,11 +144,22 @@
       <workItem from="1775041466118" duration="17505000" />
       <workItem from="1775126441135" duration="10772000" />
       <workItem from="1775209614050" duration="8000" />
-      <workItem from="1775644312713" duration="6372000" />
+      <workItem from="1775644312713" duration="16597000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
 </project>

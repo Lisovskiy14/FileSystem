@@ -2,10 +2,8 @@ package org.example.data;
 
 import lombok.Getter;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Queue;
+import java.io.ByteArrayOutputStream;
+import java.util.*;
 
 @Getter
 public class VirtualDisk {
@@ -44,17 +42,25 @@ public class VirtualDisk {
     }
 
     public byte[] readBlocksWithOffset(List<Integer> directBlocks, int offset, int size) {
-        List<Byte> allBlocks = readAllBlocks(directBlocks);
+        byte[] allBlocks = readAllBlocks(directBlocks);
+        int end = Math.min(offset + size, allBlocks.length);
 
-        int end = Math.min(offset + size, allBlocks.size());
-        List<Byte> readData = allBlocks.subList(offset, end);
+        return Arrays.copyOfRange(allBlocks, offset, end);
+    }
 
-        byte[] readDataArray = new byte[readData.size()];
-        for (int i = 0; i < readData.size(); i++) {
-            readDataArray[i] = readData.get(i);
+    public byte[] readAllBlocks(List<Integer> directBlocks) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        for (int blockIndex : directBlocks) {
+            byte[] block = blocks[blockIndex];
+            for (byte b : block) {
+                if (b != 0) {
+                    out.write(b);
+                }
+            }
         }
 
-        return readDataArray;
+        return out.toByteArray();
     }
 
     public int writeBlocksWithOffset(byte[] data, List<Integer> directBlocks, int offset) {
@@ -110,16 +116,5 @@ public class VirtualDisk {
         directBlocks.removeAll(linksToRemove);
 
         return directBlocks;
-    }
-
-    private List<Byte> readAllBlocks(List<Integer> directBlocks) {
-        List<Byte> allData = new ArrayList<>();
-        for (int blockLink : directBlocks) {
-            byte[] block = blocks[blockLink];
-            for (byte b : block) {
-                allData.add(b);
-            }
-        }
-        return allData;
     }
 }
