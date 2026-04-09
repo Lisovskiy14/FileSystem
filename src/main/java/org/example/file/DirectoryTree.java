@@ -4,11 +4,14 @@ import lombok.Getter;
 import lombok.Setter;
 import org.example.common.FileType;
 import org.example.data.VirtualDisk;
+import org.example.exception.InvalidFileTypeException;
+import org.example.exception.RecursionException;
 import org.example.file.exception.DirectoryNotFoundException;
 import org.example.file.exception.FileDescriptorNotFoundException;
 import org.example.file.exception.InvalidFileNameException;
 import org.example.file.exception.NoFreeDescriptorException;
 
+import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -63,7 +66,11 @@ public class DirectoryTree {
     }
 
     public FileDescriptor resolvePath(String path) {
-        return resolvePathWithRecursion(path, 0);
+        return resolvePathWithRecursion(path, cwd, false, 0);
+    }
+
+    public FileDescriptor resolvePathWithSymlinkResolving(String path) {
+        return resolvePathWithRecursion(path, cwd, true, 0);
     }
 
     public String getPath(FileDescriptor target) {
@@ -143,7 +150,13 @@ public class DirectoryTree {
 
         FileDescriptor directory = cwd;
         if (directoryPath != null) {
-            directory = resolvePath(directoryPath.toString());
+            directory = resolvePathWithSymlinkResolving(
+                    directoryPath.toString().replace(File.separator, "/")
+            );
+            if (directory.getType() != FileType.DIRECTORY) {
+                throw new InvalidFileTypeException("Invalid directory type. File %s is not a directory."
+                        .formatted(directoryPath.toString()));
+            }
         }
 
         return directory;
@@ -159,7 +172,16 @@ public class DirectoryTree {
         return fileNamePath.toString();
     }
 
-    private FileDescriptor resolvePathWithRecursion(String path, int recursionCount) throws DirectoryNotFoundException {
+    private FileDescriptor resolvePathWithRecursion(
+            String path,
+            FileDescriptor startingDirectory,
+            boolean resolveSymlink,
+            int recursionCount
+    ) throws DirectoryNotFoundException {
+        if (recursionCount >= 10) {
+            throw new RecursionException("Recursion appeared in path %s".formatted(path));
+        }
+
         String[] directoryPath = path.split("/");
         if (directoryPath.length == 0) {
             throw new DirectoryNotFoundException("Path is empty.");
@@ -169,9 +191,9 @@ public class DirectoryTree {
         if (path.startsWith("/") || directoryPath[0].equals(".") || directoryPath[0].equals("..")) {
             int skip = 1;
             if (directoryPath[0].equals("..")) {
-                current = fileDescriptors[cwd.getDirectoryEntries().get("..").getDescriptorId()];
+                current = fileDescriptors[startingDirectory.getDirectoryEntries().get("..").getDescriptorId()];
             } else if (directoryPath[0].equals(".")) {
-                current = cwd;
+                current = startingDirectory;
             } else {
                 current = root;
                 skip++;
@@ -186,18 +208,106 @@ public class DirectoryTree {
         for (String directoryName : directoryPath) {
             DirectoryEntry currentDirectoryEntry = current.getDirectoryEntries().get(directoryName);
             if (currentDirectoryEntry == null) {
-                throw new DirectoryNotFoundException("File %s not found in path %s"
-                        .formatted(directoryName, path));
+                throw new DirectoryNotFoundException("File %s not found."
+                        .formatted(directoryName));
             }
+
+            FileDescriptor parentForSymlink = current;
             current = fileDescriptors[currentDirectoryEntry.getDescriptorId()];
 
-            if (current.getType() == FileType.SYMLINK) {
+            if (resolveSymlink && current.getType() == FileType.SYMLINK) {
                 byte[] dataBytes = virtualDisk.readAllBlocks(current.getDirectBlocks());
                 String fullPath = new String(dataBytes, StandardCharsets.UTF_8);
-                current = resolvePathWithRecursion(fullPath, ++recursionCount);
+                current = resolvePathWithRecursion(fullPath, parentForSymlink, true, ++recursionCount);
             }
         }
 
         return current;
     }
+
+//    private FileDescriptor resolveSymlinkWithRecursion(
+//            String str,
+//            FileDescriptor startingDirectory,
+//            int recursionCount
+//    ) {
+//        if (recursionCount >= 0) {
+//            throw new RecursionException("Symlink resolving run into a recursion at %s"
+//                    .formatted(str));
+//        }
+//
+//        String[] directoryPath = splitPath(str);
+//
+//        FileDescriptor current = resolvePathStartingPoint(
+//                str,
+//                directoryPath,
+//                startingDirectory
+//        );
+//
+//        directoryPath = skipPathByCurrentDir(directoryPath, current);
+//
+//        for (String directoryName : directoryPath) {
+//            DirectoryEntry currentDirectoryEntry = current.getDirectoryEntries().get(directoryName);
+//            if (currentDirectoryEntry == null) {
+//                throw new DirectoryNotFoundException("File %s not found in directory %s"
+//                        .formatted(directoryName, startingDirectory));
+//            }
+//
+//            FileDescriptor parentForSymlink = current;
+//            current = fileDescriptors[currentDirectoryEntry.getDescriptorId()];
+//
+//            if (resolveSymlik && current.getType() == FileType.SYMLINK) {
+//                byte[] dataBytes = virtualDisk.readAllBlocks(current.getDirectBlocks());
+//                String fullPath = new String(dataBytes, StandardCharsets.UTF_8);
+//                current = resolvePathWithRecursion(fullPath, parentForSymlink, ++recursionCount);
+//            }
+//        }
+//
+//
+//
+//
+//
+//    }
+//
+//    private String[] skipPathByCurrentDir(String[] directoryPath, FileDescriptor current) {
+//        int skip = 0;
+//        if (!current.equals(cwd)) {
+//            skip++;
+//            if (current.equals(root)) {
+//                skip++;
+//            }
+//        }
+//
+//        return Arrays.stream(directoryPath)
+//                .skip(skip)
+//                .toArray(String[]::new);
+//    }
+//
+//    private String[] splitPath(String path) {
+//        String[] directoryPath = path.split("/");
+//        if (directoryPath.length == 0) {
+//            throw new DirectoryNotFoundException("Path is empty.");
+//        }
+//        return directoryPath;
+//    }
+//
+//    private FileDescriptor resolvePathStartingPoint(
+//            String path,
+//            String[] directoryPath,
+//            FileDescriptor startingDirectory
+//    ) {
+//        FileDescriptor current;
+//        if (path.startsWith("/") || directoryPath[0].equals(".") || directoryPath[0].equals("..")) {
+//            if (directoryPath[0].equals("..")) {
+//                current = fileDescriptors[startingDirectory.getDirectoryEntries().get("..").getDescriptorId()];
+//            } else if (directoryPath[0].equals(".")) {
+//                current = startingDirectory;
+//            } else {
+//                current = root;
+//            }
+//        } else {
+//            current = cwd;
+//        }
+//
+//        return current;
+//    }
 }

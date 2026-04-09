@@ -5,6 +5,7 @@ import org.example.data.VirtualDisk;
 import org.example.exception.CannotCreateFileException;
 import org.example.exception.CannotRemoveFileException;
 import org.example.exception.InvalidFileTypeException;
+import org.example.exception.RecursionException;
 import org.example.file.DirectoryEntry;
 import org.example.file.DirectoryTree;
 import org.example.file.FileDescriptor;
@@ -154,11 +155,14 @@ public class FileSystem {
     }
 
     private static void open(String path) {
-        FileDescriptor descriptor = directoryTree.resolvePath(path);
+        FileDescriptor descriptor = directoryTree.resolvePathWithSymlinkResolving(path);
+
+        if (descriptor.getType() == FileType.DIRECTORY) {
+            throw new InvalidFileTypeException("Cannot open a directory %s".formatted(path));
+        }
+
         int descriptorId = descriptor.getId();
-
         int fd = openFileTable.addOpenFile(descriptorId);
-
         System.out.printf("File %s opened successfully. FD: %d\n".formatted(path, fd));
     }
 
@@ -259,24 +263,30 @@ public class FileSystem {
     }
 
     private static void rmdir(String path) {
-        FileDescriptor directory = directoryTree.resolvePath(path);
+        FileDescriptor directory = directoryTree.resolvePathWithSymlinkResolving(path);
         if (directory.getType() != FileType.DIRECTORY) {
             throw new InvalidFileTypeException("Provided file is not a directory: " + directory.getType());
+        }
+
+        if (directory.equals(directoryTree.getRoot())) {
+            throw new CannotRemoveFileException("Cannot remove root directory");
         }
 
         Map<String, DirectoryEntry> directoryEntries = directory.getDirectoryEntries();
         if (directoryEntries.size() == 2) {
             directoryTree.removeHardLink(path);
             directoryTree.removeDescriptor(directory);
+
         } else {
             throw new CannotRemoveFileException("Target directory is not empty.");
         }
     }
 
     private static void cd(String path) {
-        FileDescriptor fileDescriptor = directoryTree.resolvePath(path);
+        FileDescriptor fileDescriptor = directoryTree.resolvePathWithSymlinkResolving(path);
         if (fileDescriptor.getType() != FileType.DIRECTORY) {
-            throw new InvalidFileTypeException("Path %s is not a directory.".formatted(path));
+            throw new InvalidFileTypeException("Path %s is not a directory."
+                    .formatted(path));
         }
         directoryTree.setCwd(fileDescriptor);
     }
@@ -285,15 +295,15 @@ public class FileSystem {
         // Here the str value must be validated to be sure it is a valid path.
         // resolvePath() method will throw an exception if the path is incorrect.
         FileDescriptor targetDescriptor = directoryTree.resolvePath(str);
-        String fullPath = directoryTree.getPath(targetDescriptor);
+//        String fullPath = directoryTree.getPath(targetDescriptor);
 
-        if (fullPath.length() > virtualDisk.getBLOCK_SIZE()) {
+        if (str.length() > virtualDisk.getBLOCK_SIZE()) {
             throw new CannotCreateFileException("Provided file is too large: %d. Max size of symlink is %d."
-                    .formatted(fullPath.length(), virtualDisk.getBLOCK_SIZE()));
+                    .formatted(str.length(), virtualDisk.getBLOCK_SIZE()));
         }
 
         int descriptorId = directoryTree.findFreeDescriptorId();
-        byte[] block = fullPath.getBytes(StandardCharsets.UTF_8);
+        byte[] block = str.getBytes(StandardCharsets.UTF_8);
 
         int freeIndex = virtualDisk.pollFreeIndex();
         System.arraycopy(
@@ -306,7 +316,7 @@ public class FileSystem {
                 .id(descriptorId)
                 .type(FileType.SYMLINK)
                 .linkCount(1)
-                .size(fullPath.length())
+                .size(str.length())
                 .directBlocks(List.of(freeIndex))
                 .build();
 
