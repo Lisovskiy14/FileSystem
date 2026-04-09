@@ -187,22 +187,13 @@ public class DirectoryTree {
             throw new DirectoryNotFoundException("Path is empty.");
         }
 
-        FileDescriptor current;
-        if (path.startsWith("/") || directoryPath[0].equals(".") || directoryPath[0].equals("..")) {
-            int skip = 1;
-            if (directoryPath[0].equals("..")) {
-                current = fileDescriptors[startingDirectory.getDirectoryEntries().get("..").getDescriptorId()];
-            } else if (directoryPath[0].equals(".")) {
-                current = startingDirectory;
-            } else {
-                current = root;
-                skip++;
-            }
+        FileDescriptor current = startingDirectory;
+        if (path.startsWith("/")) {
+            current = root;
             directoryPath = Arrays.stream(directoryPath)
-                    .skip(skip)
+                    .skip(2)
                     .toArray(String[]::new);
-        } else {
-            current = cwd;
+
         }
 
         for (String directoryName : directoryPath) {
@@ -224,90 +215,4 @@ public class DirectoryTree {
 
         return current;
     }
-
-//    private FileDescriptor resolveSymlinkWithRecursion(
-//            String str,
-//            FileDescriptor startingDirectory,
-//            int recursionCount
-//    ) {
-//        if (recursionCount >= 0) {
-//            throw new RecursionException("Symlink resolving run into a recursion at %s"
-//                    .formatted(str));
-//        }
-//
-//        String[] directoryPath = splitPath(str);
-//
-//        FileDescriptor current = resolvePathStartingPoint(
-//                str,
-//                directoryPath,
-//                startingDirectory
-//        );
-//
-//        directoryPath = skipPathByCurrentDir(directoryPath, current);
-//
-//        for (String directoryName : directoryPath) {
-//            DirectoryEntry currentDirectoryEntry = current.getDirectoryEntries().get(directoryName);
-//            if (currentDirectoryEntry == null) {
-//                throw new DirectoryNotFoundException("File %s not found in directory %s"
-//                        .formatted(directoryName, startingDirectory));
-//            }
-//
-//            FileDescriptor parentForSymlink = current;
-//            current = fileDescriptors[currentDirectoryEntry.getDescriptorId()];
-//
-//            if (resolveSymlik && current.getType() == FileType.SYMLINK) {
-//                byte[] dataBytes = virtualDisk.readAllBlocks(current.getDirectBlocks());
-//                String fullPath = new String(dataBytes, StandardCharsets.UTF_8);
-//                current = resolvePathWithRecursion(fullPath, parentForSymlink, ++recursionCount);
-//            }
-//        }
-//
-//
-//
-//
-//
-//    }
-//
-//    private String[] skipPathByCurrentDir(String[] directoryPath, FileDescriptor current) {
-//        int skip = 0;
-//        if (!current.equals(cwd)) {
-//            skip++;
-//            if (current.equals(root)) {
-//                skip++;
-//            }
-//        }
-//
-//        return Arrays.stream(directoryPath)
-//                .skip(skip)
-//                .toArray(String[]::new);
-//    }
-//
-//    private String[] splitPath(String path) {
-//        String[] directoryPath = path.split("/");
-//        if (directoryPath.length == 0) {
-//            throw new DirectoryNotFoundException("Path is empty.");
-//        }
-//        return directoryPath;
-//    }
-//
-//    private FileDescriptor resolvePathStartingPoint(
-//            String path,
-//            String[] directoryPath,
-//            FileDescriptor startingDirectory
-//    ) {
-//        FileDescriptor current;
-//        if (path.startsWith("/") || directoryPath[0].equals(".") || directoryPath[0].equals("..")) {
-//            if (directoryPath[0].equals("..")) {
-//                current = fileDescriptors[startingDirectory.getDirectoryEntries().get("..").getDescriptorId()];
-//            } else if (directoryPath[0].equals(".")) {
-//                current = startingDirectory;
-//            } else {
-//                current = root;
-//            }
-//        } else {
-//            current = cwd;
-//        }
-//
-//        return current;
-//    }
 }
