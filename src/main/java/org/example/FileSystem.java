@@ -5,7 +5,6 @@ import org.example.data.VirtualDisk;
 import org.example.exception.CannotCreateFileException;
 import org.example.exception.CannotRemoveFileException;
 import org.example.exception.InvalidFileTypeException;
-import org.example.exception.RecursionException;
 import org.example.file.DirectoryEntry;
 import org.example.file.DirectoryTree;
 import org.example.file.FileDescriptor;
@@ -112,17 +111,24 @@ public class FileSystem {
     }
 
     private static void link(String path1, String path2) {
-        FileDescriptor descriptor = directoryTree.resolvePath(path1);
-        descriptor.setLinkCount(descriptor.getLinkCount() + 1);
+        FileDescriptor targetDescriptor = directoryTree.resolvePath(path1);
+        if (targetDescriptor.getType() == FileType.DIRECTORY) {
+            throw new InvalidFileTypeException("Cannot link a directory.");
+        }
 
-        directoryTree.addHardLinkToDescriptor(path2, descriptor.getId());
-        System.out.printf("File %s linked to descriptor %d successfully.\n".formatted(path2, descriptor.getId()));
+        targetDescriptor.setLinkCount(targetDescriptor.getLinkCount() + 1);
+        directoryTree.addHardLinkToDescriptor(path2, targetDescriptor.getId());
+
+        System.out.printf("File %s linked to descriptor %d successfully.\n".formatted(path2, targetDescriptor.getId()));
     }
 
     private static void unlink(String path) {
         FileDescriptor descriptor = directoryTree.resolvePath(path);
-        descriptor.setLinkCount(descriptor.getLinkCount() - 1);
+        if (descriptor.getType() == FileType.DIRECTORY) {
+            throw new InvalidFileTypeException("Cannot unlink a directory.");
+        }
 
+        descriptor.setLinkCount(descriptor.getLinkCount() - 1);
         directoryTree.removeHardLink(path);
 
         if (descriptor.getLinkCount() == 0 &&
@@ -134,8 +140,8 @@ public class FileSystem {
         System.out.printf("File %s unlinked successfully.\n".formatted(path));
     }
 
-    private static void stat(String name) {
-        FileDescriptor descriptor = directoryTree.resolvePath(name);
+    private static void stat(String path) {
+        FileDescriptor descriptor = directoryTree.resolvePath(path);
         System.out.println(descriptor.toString());
     }
 
@@ -231,7 +237,12 @@ public class FileSystem {
     private static void truncate(String path, String stringSize) {
         int size = Integer.parseInt(stringSize);
 
-        FileDescriptor fileDescriptor = directoryTree.resolvePath(path);
+        FileDescriptor fileDescriptor = directoryTree.resolvePathWithSymlinkResolving(path);
+        if (fileDescriptor.getType() != FileType.REGULAR) {
+            throw new InvalidFileTypeException("Cannot truncate not a REGULAR file %s"
+                    .formatted(path));
+        }
+
         List<Integer> directBlocks = fileDescriptor.getDirectBlocks();
 
         if (size < fileDescriptor.getSize()) {
@@ -294,8 +305,7 @@ public class FileSystem {
     private static void symlink(String str, String path) {
         // Here the str value must be validated to be sure it is a valid path.
         // resolvePath() method will throw an exception if the path is incorrect.
-        FileDescriptor targetDescriptor = directoryTree.resolvePath(str);
-//        String fullPath = directoryTree.getPath(targetDescriptor);
+        directoryTree.resolvePath(str);
 
         if (str.length() > virtualDisk.getBLOCK_SIZE()) {
             throw new CannotCreateFileException("Provided file is too large: %d. Max size of symlink is %d."

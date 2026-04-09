@@ -5,7 +5,7 @@ import lombok.Setter;
 import org.example.common.FileType;
 import org.example.data.VirtualDisk;
 import org.example.exception.InvalidFileTypeException;
-import org.example.exception.RecursionException;
+import org.example.file.exception.RecursionException;
 import org.example.file.exception.DirectoryNotFoundException;
 import org.example.file.exception.FileDescriptorNotFoundException;
 import org.example.file.exception.InvalidFileNameException;
@@ -16,7 +16,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @Getter
@@ -206,7 +205,12 @@ public class DirectoryTree {
             FileDescriptor parentForSymlink = current;
             current = fileDescriptors[currentDirectoryEntry.getDescriptorId()];
 
-            if (resolveSymlink && current.getType() == FileType.SYMLINK) {
+            if (current.getType() == FileType.SYMLINK) {
+                String lastComponent = directoryPath[directoryPath.length - 1];
+                if (directoryName.equals(lastComponent) && !resolveSymlink) {
+                    continue;
+                }
+
                 byte[] dataBytes = virtualDisk.readAllBlocks(current.getDirectBlocks());
                 String fullPath = new String(dataBytes, StandardCharsets.UTF_8);
                 current = resolvePathWithRecursion(fullPath, parentForSymlink, true, ++recursionCount);
