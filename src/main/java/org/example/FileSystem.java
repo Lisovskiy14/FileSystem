@@ -131,11 +131,7 @@ public class FileSystem {
         descriptor.setLinkCount(descriptor.getLinkCount() - 1);
         directoryTree.removeHardLink(path);
 
-        if (descriptor.getLinkCount() == 0 &&
-                openFileTable.getOpenFileByDescriptorId(descriptor.getId()) == null) {
-            descriptor.getDirectBlocks().forEach(virtualDisk::removeBlock);
-            directoryTree.removeDescriptor(descriptor);
-        }
+        checkDescriptorForRemoval(descriptor);
 
         System.out.printf("File %s unlinked successfully.\n".formatted(path));
     }
@@ -175,7 +171,12 @@ public class FileSystem {
     private static void close(String stringFd) {
         int fd = Integer.parseInt(stringFd);
 
+        OpenFile openFile = openFileTable.getOpenFileByFd(fd);
+        FileDescriptor descriptor = directoryTree.getFileDescriptorById(
+                openFile.getDescriptorId());
+
         openFileTable.removeOpenFile(fd);
+        checkDescriptorForRemoval(descriptor);
 
         System.out.printf("FD %d closed successfully.\n".formatted(fd));
     }
@@ -331,5 +332,13 @@ public class FileSystem {
                 .build();
 
         directoryTree.addNewDescriptor(path, fileDescriptor);
+    }
+
+    private static void checkDescriptorForRemoval(FileDescriptor descriptor) {
+        if (descriptor.getLinkCount() == 0 &&
+                openFileTable.getOpenFileByDescriptorId(descriptor.getId()) == null) {
+            descriptor.getDirectBlocks().forEach(virtualDisk::removeBlock);
+            directoryTree.removeDescriptor(descriptor);
+        }
     }
 }
